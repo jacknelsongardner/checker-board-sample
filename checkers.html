@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Checkers Drag & Drop</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      margin-top: 50px;
+      background-color: #f0f0f0;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 2px solid #333;
+    }
+
+    .square {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .light {
+      background-color: #eee;
+    }
+
+    .dark {
+      background-color: #555;
+    }
+
+    .piece {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: red;
+      cursor: grab;
+    }
+
+    .piece.black {
+      background-color: black;
+    }
+  </style>
+</head>
+<body>
+
+<div class="board" id="board"></div>
+
+<script>
+const board = document.getElementById('board');
+
+// Create the board
+for (let row = 0; row < 8; row++) {
+  for (let col = 0; col < 8; col++) {
+    const square = document.createElement('div');
+    square.classList.add('square');
+    if ((row + col) % 2 === 0) {
+      square.classList.add('light');
+    } else {
+      square.classList.add('dark');
+    }
+    square.dataset.row = row;
+    square.dataset.col = col;
+    board.appendChild(square);
+  }
+}
+
+// Add pieces
+function addPiece(row, col, color) {
+  const piece = document.createElement('div');
+  piece.classList.add('piece');
+  if (color === 'black') {
+    piece.classList.add('black');
+  }
+  piece.draggable = true;
+  piece.addEventListener('dragstart', dragStart);
+  const square = getSquare(row, col);
+  square.appendChild(piece);
+}
+
+function getSquare(row, col) {
+  return document.querySelector(`.square[data-row='${row}'][data-col='${col}']`);
+}
+
+// Initial positions
+for (let row = 0; row < 3; row++) {
+  for (let col = 0; col < 8; col++) {
+    if ((row + col) % 2 !== 0) {
+      addPiece(row, col, 'black');
+    }
+  }
+}
+
+for (let row = 5; row < 8; row++) {
+  for (let col = 0; col < 8; col++) {
+    if ((row + col) % 2 !== 0) {
+      addPiece(row, col, 'red');
+    }
+  }
+}
+
+// Drag and Drop
+let draggedPiece = null;
+
+function dragStart(e) {
+  draggedPiece = this;
+}
+
+board.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+board.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const square = e.target.classList.contains('square') ? e.target : e.target.parentElement;
+  if (square.classList.contains('square')) {
+    square.appendChild(draggedPiece);
+    draggedPiece = null;
+  }
+});
+</script>
+
+</body>
+</html>

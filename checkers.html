@@ -52,9 +52,11 @@
 <div class="board" id="board"></div>
 
 <script>
-const board = document.getElementById('board');
+const boardElement = document.getElementById('board');
 
-// Create the board
+let currentBoard = Array(8).fill(null).map(() => Array(8).fill(0)); // Initialize empty board
+
+// Create the board squares
 for (let row = 0; row < 8; row++) {
   for (let col = 0; col < 8; col++) {
     const square = document.createElement('div');
@@ -66,11 +68,11 @@ for (let row = 0; row < 8; row++) {
     }
     square.dataset.row = row;
     square.dataset.col = col;
-    board.appendChild(square);
+    boardElement.appendChild(square);
   }
 }
 
-// Add pieces
+// Add a piece to the board
 function addPiece(row, col, color) {
   const piece = document.createElement('div');
   piece.classList.add('piece');
@@ -81,13 +83,15 @@ function addPiece(row, col, color) {
   piece.addEventListener('dragstart', dragStart);
   const square = getSquare(row, col);
   square.appendChild(piece);
+
+  currentBoard[row][col] = color === 'black' ? -1 : 1;
 }
 
 function getSquare(row, col) {
   return document.querySelector(`.square[data-row='${row}'][data-col='${col}']`);
 }
 
-// Initial positions
+// Initial piece placement
 for (let row = 0; row < 3; row++) {
   for (let col = 0; col < 8; col++) {
     if ((row + col) % 2 !== 0) {
@@ -95,7 +99,6 @@ for (let row = 0; row < 3; row++) {
     }
   }
 }
-
 for (let row = 5; row < 8; row++) {
   for (let col = 0; col < 8; col++) {
     if ((row + col) % 2 !== 0) {
@@ -104,22 +107,84 @@ for (let row = 5; row < 8; row++) {
   }
 }
 
-// Drag and Drop
 let draggedPiece = null;
 
 function dragStart(e) {
   draggedPiece = this;
 }
 
-board.addEventListener('dragover', (e) => {
+// Update the visual board based on a 2D array
+function setBoard(newBoard) {
+  // Clear all squares
+  document.querySelectorAll('.square').forEach(square => {
+    square.innerHTML = '';
+  });
+
+  currentBoard = newBoard;
+
+  // Re-add pieces
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      if (newBoard[row][col] === 1) {
+        addPiece(row, col, 'red');
+      } else if (newBoard[row][col] === -1) {
+        addPiece(row, col, 'black');
+      }
+    }
+  }
+}
+
+function postRequest(x_old, y_old, x_new, y_new, boardState) {
+  fetch('http://localhost:2000/move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      x_old,
+      y_old,
+      x_new,
+      y_new,
+      color: 1, // red is 1
+      turn: 1,  // assuming it's always player's turn
+      board: boardState
+    }),
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Response:', data);
+    setBoard(data.board);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+}
+
+boardElement.addEventListener('dragover', (e) => {
   e.preventDefault();
 });
 
-board.addEventListener('drop', (e) => {
+boardElement.addEventListener('drop', (e) => {
   e.preventDefault();
   const square = e.target.classList.contains('square') ? e.target : e.target.parentElement;
-  if (square.classList.contains('square')) {
-    square.appendChild(draggedPiece);
+  if (square.classList.contains('square') && draggedPiece) {
+    const oldSquare = draggedPiece.parentElement;
+    const xold = parseInt(oldSquare.dataset.row);
+    const yold = parseInt(oldSquare.dataset.col);
+    const xnew = parseInt(square.dataset.row);
+    const ynew = parseInt(square.dataset.col);
+
+    // Only allow move if dropping onto an empty dark square
+    if (square.children.length === 0 && square.classList.contains('dark')) {
+      // Temporarily move the piece visually
+      square.appendChild(draggedPiece);
+
+      // Update local board (optional - backend will send real state anyway)
+      currentBoard[xold][yold] = 0;
+      currentBoard[xnew][ynew] = 1; // You might adjust depending on player turn
+
+      // Send move to server
+      postRequest(xold, yold, xnew, ynew, currentBoard);
+    }
+
     draggedPiece = null;
   }
 });
